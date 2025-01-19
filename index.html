@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>2D</title>
+	<style type="text/css">
+		body {
+			margin: 0;
+			width: 100vw;
+			height: 100vh;
+			overflow: hidden;
+		}
+		canvas {
+			margin: 0;
+			width: 100%;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+	<!-- <script type="text/javascript" src="./gpu-browser.min.js"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.2/p5.js"></script> 
+	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6./addons/p5.dom.js"></script> -->
+	<script type="text/javascript" id="script">
+		/*
+		 * Todo:
+		 * вихри
+		 */
+
+		// MASK SHADER //
+
+		let baseMaskVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec3 aNormal;
+			varying vec4 vVertexColor;
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
+			#define MAX_CELLS 12*6
+
+			uniform float uTime;
+			uniform vec2 uCamera;
+			uniform int uCellsCount;
+			uniform vec2 uCells [MAX_CELLS];
+			uniform float uSpeed;
+
+			float sp_dist(vec2 a, vec2 b) {
+				return 1.-sin(a.x)*sin(b.x)*cos(a.y-b.y)+cos(a.x)*cos(b.x);
+			}
+
+			void main() {
+				vec3 p = aPosition;
+
+				vec3 s = vec3(
+					length(p),
+					atan(length(p.xz),p.y),
+					atan(p.z,p.x)
+				);
+
+				vec2 i_st = floor(s.yz*3.);
+				vec2 f_st = fract(s.yz*3.);
+
+				float m_dist = 1.;
+				float m_a_dist = -1.;
+
+				for (int i=0; i<MAX_CELLS; i++) {
+			 		if (i>=uCellsCount) break;
+					vec2 point = s.yz;
+					
+					vec2 cell = uCells[i];
+
+					float dist = sp_dist(cell,point);//length(diff);
+
+					if(dist<m_dist) {
+						m_a_dist = m_dist;
+						m_dist = dist;
+					} else if(m_a_dist==-1. || dist<m_a_dist) {
+						m_a_dist = dist;
+					}
+				}
+
+				vVertexColor = vec4(vec3(0.),m_dist/m_a_dist+.4);
+
+				float k = smoothstep(0.,.7,(m_dist/m_a_dist));
+				float g = length(mod(s.yz*15.-1.,2.)-1.)
+						* 0.06
+						* (1.56-abs(1.56-s.y))
+						* smoothstep(0.4,.9,(m_dist/m_a_dist))
+						* max(1.-abs(sin(uTime*2.)), uSpeed*50.);
+				s.x += k/4. - .2 + g;
+
+				vec3 p_c = p = vec3(
+					s.x*sin(s.y)*cos(s.z),
+					s.x*cos(s.y),
+					s.x*sin(s.y)*sin(s.z)
+				);
+
+				vec4 viewModelPosition = uModelViewMatrix * vec4(p, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+			}
+		`;
+		let baseMaskFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+
+			void main() {
+				gl_FragColor = vVertexColor;
+				gl_FragColor.a = 1.;
+			}
+		`;
+
+		// BASE SHADER //
+
+		let baseVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec3 aNormal;
+			varying vec4 vVertexColor;
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
+			#define MAX_CELLS 12*6
+
+			uniform float uTime;
+			uniform vec2 uCamera;
+			uniform int uCellsCount;
+			uniform vec2 uCells [MAX_CELLS];
+			uniform float uSpeed;
+
+			float sp_dist(vec2 a, vec2 b) {
+				return 1.-sin(a.x)*sin(b.x)*cos(a.y-b.y)+cos(a.x)*cos(b.x);
+			}
+
+			void main() {
+				vec3 p = aPosition;
+
+				vec3 s = vec3(
+					length(p),
+					atan(length(p.xz),p.y),
+					atan(p.z,p.x)
+				);
+
+				vec2 i_st = floor(s.yz*3.);
+				vec2 f_st = fract(s.yz*3.);
+
+				float m_dist = 1.;
+				float m_a_dist = -1.;
+
+				for (int i=0; i<MAX_CELLS; i++) {
+			 		if (i>=uCellsCount) break;
+					vec2 point = s.yz;
+					
+					vec2 cell = uCells[i];
+
+					float dist = sp_dist(cell,point);//length(diff);
+
+					if(dist<m_dist) {
+						m_a_dist = m_dist;
+						m_dist = dist;
+					} else if(m_a_dist==-1. || dist<m_a_dist) {
+						m_a_dist = dist;
+					}
+				}
+
+				vec3 cam_n = aNormal;
+				cam_n.zx *= rot(uCamera.x);
+				cam_n.xy *= rot(uCamera.y);
+				cam_n = abs(cam_n);
+
+				vVertexColor = vec4(cam_n,m_dist/m_a_dist+.4);
+
+				float k = smoothstep(0.,.7,(m_dist/m_a_dist));
+				float g = length(mod(s.yz*15.-1.,2.)-1.)
+						* 0.06
+						* (1.56-abs(1.56-s.y))
+						* smoothstep(0.4,.9,(m_dist/m_a_dist))
+						* max(1.-abs(sin(uTime*2.)), uSpeed*50.);
+				s.x += k/4. - .2 + g;
+				vVertexColor.rgb = mix(vVertexColor.grb,vec3(.5,.5,.9),k-.3);
+
+				p = vec3(
+					s.x*sin(s.y)*cos(s.z),
+					s.x*cos(s.y),
+					s.x*sin(s.y)*sin(s.z)
+				);
+
+				vec4 viewModelPosition = uModelViewMatrix * vec4(p, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+			}
+		`;
+		let baseFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+
+			void main() {
+				if (vVertexColor.a < .9)
+					discard;
+				gl_FragColor = vVertexColor;
+			}
+		`;
+
+		// SPLASHES SHADER //
+
+		let splashVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec3 aNormal;
+			varying vec4 vVertexColor;
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			uniform float uTime;
+			uniform vec2 uCamera;
+
+			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
+
+			void main() {
+				vec3 p = aPosition;
+				
+				vec3 cam_n = aNormal;
+				cam_n.zx *= rot(uCamera.x);
+				cam_n.xy *= rot(-uCamera.y);
+				cam_n = abs(cam_n);
+
+				vec3 w_p = p;
+				
+				vec2 p_a = p.xy*vec2(2.,4.)*2.+vec2(.5,0.);
+				p_a -= 0.5;
+
+				float r_b = min(
+					length(mod(p_a   -1.,2.)-1.)/2.,
+					length(mod(p_a*2.-1.,2.)-1.)*2.
+				);
+
+				vVertexColor = vec4(vec3(.5,.5,.9)+abs(cam_n)*.1, r_b+1.-uTime/2.);
+
+				p.xz *= 1.-sqrt(p.y+.5);
+				p.y += .5;
+				p.y *= uTime;
+				p.y -= .5;
+
+				vec4 viewModelPosition = uModelViewMatrix * vec4(p, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+			}
+		`;
+		let splashFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+			uniform vec2 uResolution;
+
+			void main() {
+				vec2 uv = (gl_FragCoord.xy*2.-uResolution*2.)/uResolution.y;
+
+				if (vVertexColor.a < .9)// || length(uv)<1.5
+					discard;
+				gl_FragColor = vVertexColor;
+			}
+		`;
+
+		// INSIDE SHADER //
+
+		let insideVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec2 aTexCoord;
+
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			varying vec2 vTexCoord;
+			varying vec4 vVertexColor;
+
+			void main() {
+				vec4 viewModelPosition = uModelViewMatrix * vec4(aPosition, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+				vTexCoord = aTexCoord;
+			}
+		`;
+		let insideFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+			varying vec2 vTexCoord;
+
+			uniform vec2 uResolution;
+			uniform vec3 uCamera;
+			uniform vec2 uCamera_r;
+			uniform float uZoom;
+			uniform float uTime;
+
+			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
+
+			float cube(vec3 p, vec3 b, float r)
+			{
+				vec3 q = abs(p) - b + r;
+				return length(max(q,0.)) + min(max(q.x,max(q.y,q.z)),0.) - r;
+			}
+			float scene(vec3 p) {
+				p.xy *= rot(uTime*0.2);
+				p.yz *= rot(uTime*0.2);
+				p.zx *= rot(uTime*0.2);
+
+				vec3 pp = p;
+				float ss=2., s;
+				for(int j=0; j<7; j++) {
+					p=mod(p-1.,2.)-1.;
+					ss*=s=(1.3+sin(uTime*0.2)*0.3)/dot(p,p);
+					// ss*=s=1./dot(p,p);
+					p*=s;
+
+					// p.xz *= rot(0.1);
+					// p.y *= 1.1;
+				}
+
+				float sphere = length(pp)-.65;
+				float cross = min(min(length(p.xz),length(p.xy)),length(p.yz));
+				float fractal = (cross)/ss;
+
+				return max(sphere,fractal);
+			}
+			
+			vec3 sceneN(vec3 p)
+			{ 
+				float d = scene(p);
+				vec2 e = vec2(.1,0);
+				vec3 n = d - vec3(
+					scene(p-e.xyy),
+					scene(p-e.yxy),
+					scene(p-e.yyx)
+				);
+				return normalize(n);
+			}
+
+			float random (vec2 st) {return fract(sin(dot(st.xy,vec2(12.9898,78.233)))*43758.5453123);}
+			void main() {
+				vec2 uv = (gl_FragCoord.xy*2.-uResolution*2.)/uResolution.y;
+			
+				float r = 1.;
+				vec3 p, rd=normalize(vec3(uv,1.)), ro=uCamera*vec3(1,1,-1);
+				float zoom = length(ro);
+				ro = normalize(ro)*(0.5+zoom*1.);
+
+				rd.yz *= rot(uCamera_r.y+3.14/2.);
+				rd.zx *= rot(uCamera_r.x-3.14/2.);
+
+				float d=0., e=1., dist=-1., alpha=1.;
+				for(int i=0; i<50; i++) {
+					if(e<.001) {
+						dist = float(i);
+						break;
+					}
+					p = rd*d+ro;
+					d+=e = scene(p);
+				}
+				if(dist==-1.) gl_FragColor = vec4(0.);
+				else {
+					vec3 normal = sceneN(p);
+					normal.zx *= rot(-uCamera_r.x-3.14/2.);
+					normal.yz *= rot(uCamera_r.y+3.14/2.);
+					vec3 color = mix(
+						abs(normal),
+						vec3(.5,.5,.9),
+						0.2+dist/40.
+					);
+					gl_FragColor = vec4(color,1.);
+				}
+			}
+		`;
+
+		// SPLASHES SHADER //
+
+		let vortexVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec3 aNormal;
+			varying vec4 vVertexColor;
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			uniform float uTime;
+			uniform vec2 uCamera;
+
+			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
+
+			void main() {
+				vec3 p = aPosition;
+				
+				vec3 cam_n = aNormal;
+				cam_n.zx *= rot(uCamera.x);
+				cam_n.xy *= rot(-uCamera.y);
+				cam_n = abs(cam_n);
+
+				// vec3 w_p = p/vec3(5,100,0)-0.5;
+				
+				vec2 p_a = p.xy*vec2(4.5,20.)*1.+vec2(1.5,-0.5);
+				vVertexColor = vec4(vec3(.5,.5,.9)*.7+cam_n*.3, length(mod(p_a-1.5,2.)-1.)+0.2-uTime*0.8);
+
+				p.x *= (p.y-.5)*10.;
+
+				p.z /= 500.0;
+				p.yz *= rot(3.14/2. + (p_a.y+10.)/15. );
+				p.z *= 500.0;
+				p.x *= uTime*2.;
+
+				// vVertexColor = vec4(p, 1.0);
+
+				vec4 viewModelPosition = uModelViewMatrix * vec4(p, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+			}
+		`;
+		let vortexFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+			uniform vec2 uResolution;
+
+			void main() {
+				vec2 uv = (gl_FragCoord.xy*2.-uResolution*2.)/uResolution.y;
+
+				if (vVertexColor.a < .9)// || length(uv)<1.5
+					discard;
+				gl_FragColor = vVertexColor;
+			}
+		`;
+
+		// FINAL SHADER //
+
+		let sumVert = `
+			precision highp float;
+
+			attribute vec3 aPosition;
+			attribute vec2 aTexCoord;
+
+			uniform mat4 uModelViewMatrix;
+			uniform mat4 uProjectionMatrix;
+
+			varying vec2 vTexCoord;
+			varying vec4 vVertexColor;
+
+			void main() {
+				vec4 viewModelPosition = uModelViewMatrix * vec4(aPosition, 1.);
+				gl_Position = uProjectionMatrix * viewModelPosition;
+				vTexCoord = aTexCoord;
+			}
+		`;
+		let sumFrag = `
+			precision highp float;
+
+			varying vec4 vVertexColor;
+			varying vec2 vTexCoord;
+
+			uniform sampler2D mainImg;
+			uniform sampler2D backImg;
+			uniform sampler2D maskImg;
+			uniform sampler2D vortImg;
+			uniform sampler2D vortDep;
+
+			void main() {
+				vec2 flip_tex_coord = vec2(vTexCoord.x,1.0-vTexCoord.y);
+				vec4 back_img_color = texture2D(backImg, flip_tex_coord);
+				vec4 main_img_color = texture2D(mainImg, flip_tex_coord);
+				vec4 mask_img_color = texture2D(maskImg, flip_tex_coord);
+				vec4 vort_img_color = texture2D(vortImg, flip_tex_coord);
+				float vort_img_depth = texture2D(vortDep, flip_tex_coord).r;
+
+				gl_FragColor = mix(
+					mix(
+						back_img_color,
+						main_img_color,
+						mask_img_color.a
+					),
+					vort_img_color,
+					clamp(step(vort_img_depth,0.9)+(1.-mask_img_color.a),0.,1.)
+				);
+				// gl_FragColor = back_img_color;
+			}
+		`;
+
+		// SETUP //
+
+		const splashs_count = 10;
+		let u_cells,
+			amps = [],
+			splashs = [],
+			mainLayer,
+			maskLayer,
+			backLayer,
+			vortLayer,
+			prev_cam_rot = [1.5707963267948966,1.5707963267948966],
+			vortexes = [];
+		function setup() {
+			createCanvas(window.innerWidth, window.innerHeight, WEBGL);
+			baseMaskShader 	= createShader(baseMaskVert, baseMaskFrag);
+			baseShader 		= createShader(baseVert, baseFrag);
+			splashShader 	= createShader(splashVert, splashFrag);
+			vortexShader 	= createShader(vortexVert, vortexFrag);
+			insideShader 	= createShader(insideVert, insideFrag);
+			sumShader 		= createShader(sumVert, sumFrag);
+			cam = createCamera();
+			camL = createCamera();
+			camR = createCamera();
+			mainLayer = createFramebuffer();
+			maskLayer = createFramebuffer();
+			backLayer = createFramebuffer();
+			vortLayer = createFramebuffer();
+
+		// find 12 points in dodecahedron pattern
+			const DDA = Math.acos(-Math.sqrt(1/5));//*180/Math.PI;// Dihedral dodecahedron angle
+			var fcells = [];
+			fcells.push([ Math.PI/2,0]);
+			fcells.push([-Math.PI/2,0]);
+			for(var i=0; i<5; i++) {
+				fcells.push([ Math.PI/2-DDA,Math.PI*2*(i/5	)]);
+				fcells.push([-Math.PI/2+DDA,Math.PI*2*(i/5+0.1)]);
+			}
+		// fix coords
+			for(var i=0; i<12; i++) {
+				fcells[i][0] += Math.PI/2;
+				fcells[i][1] -= Math.PI*0.2;
+			}
+		// find new subcells
+			var cells = [];
+			for(var i=0; i<12; i++) {
+				const center = fcells[i];
+				if(Math.random()>0.3) {
+					const segs = Math.floor(Math.random()*4+3); //3-7
+					const max_r = Math.PI/4-DDA/2;
+					for(var j=0; j<segs; j++) {
+						var dt = max_r*Math.cos(Math.PI*2 * j/segs);
+						var df = max_r*Math.sin(Math.PI*2 * j/segs);
+						
+						if(Math.abs(center[0]-Math.PI/2)>1.5) {
+							dt = max_r;
+							df = Math.PI*2 * j/segs;
+						}
+						
+						var nt = center[0]+dt;
+						var nf = center[1]+df;
+
+						cells.push([nt,nf]);
+					}
+				} else cells.push(center);
+			}
+		// resize to 1D
+			u_cells = [].concat(...cells);
+		// fill random amplitudes for animation
+			for(var i=0; i<u_cells.length; i++) amps[i] = Math.random();
+
+		// fill splashs
+			for(var i=0; i<splashs_count; i++) splashs[i] = {
+				time: i*(1000+1000*Math.random()),
+				angle: Math.PI*2*Math.random()
+			};
+		}
+
+		function pol_dist(a,b) {
+			return 1-(Math.sin(a[0])*Math.sin(b[0])*Math.cos(a[1]-b[1])+Math.cos(a[0])*Math.cos(b[0]));
+		}
+ 
+		// DRAW //
+
+		function draw() {
+			background(10,10,60);
+			// stroke(1);
+			noStroke();
+
+			// gl = this._renderer.GL;
+			// gl.disable(gl.DEPTH_TEST);
+			// gl.enable(gl.DEPTH_WRITE);
+			// gl.enable(gl.BLEND);
+			// gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			
+			setCamera(cam);
+			orbitControl(1,1,1);
+			setCamera(camL);
+
+		// randomize cells
+			const random_rate = 0.01;
+			var phase = 0;
+			for(var i=0; i<u_cells.length; i++) u_cells[i] += Math.cos((phase+=Math.PI/2) + millis()/500)*random_rate*amps[i];
+		// cavera vector
+			const cam_vec    = createVector(cam.eyeX,-cam.eyeY,cam.eyeZ);
+			const cam_center = createVector(cam.centerX,-cam.centerY,cam.centerZ);
+			const cam_mag = cam_vec.mag();
+			const cam_vec_n = cam_vec.copy().normalize();
+			const cam_div = cam_vec.copy().sub(cam_center);
+			var cam_rot = [
+				Math.atan2(cam_div.z,cam_div.x),
+				Math.atan2(Math.sqrt(Math.pow(cam_div.x,2)+Math.pow(cam_div.z,2)),cam_div.y)
+			];
+			cam_rot[1] *= cam.upY;
+			if(cam.upY == -1) cam_rot[0] += Math.PI;
+		// camera speed
+			var cam_speed_vec = [
+				prev_cam_rot[0]-cam_rot[0],
+				prev_cam_rot[1]-cam_rot[1]
+			];
+			cam_speed_vec = [
+				cam_speed_vec[0] = (Math.PI-Math.abs(Math.abs(cam_speed_vec[0])-Math.PI)) * ((prev_cam_rot[0]-cam_rot[0] > 0)? 1: -1),
+				cam_speed_vec[1] = (Math.PI-Math.abs(Math.abs(cam_speed_vec[1])-Math.PI)) * ((prev_cam_rot[1]-cam_rot[1] > 0)? 1: -1)
+			]
+			const cam_speed = pol_dist(prev_cam_rot,cam_rot);
+			prev_cam_rot = cam_rot;
+
+			const vortexes_num = Math.floor((Math.abs(cam_speed_vec[0])+Math.abs(cam_speed_vec[1]))/0.1);
+			if(vortexes_num!=0) {
+				if(vortexes.length < vortexes_num) {
+					const rnd = Math.random()*20;
+					vortexes.push({
+						time: millis(),
+						posX: cam_rot[0] + cam_speed_vec[0]*rnd,
+						posY: cam_rot[1] + cam_speed_vec[1]*rnd,
+						velX: cam_speed_vec[0],
+						velY: cam_speed_vec[1],
+						vel:  cam_speed
+					});
+				}
+			}
+			
+		// base
+			mainLayer.begin();
+
+				clear();
+				scale(1,-1,1);
+				setCamera(cam);
+
+				shader(baseShader);
+				baseShader.setUniform('uCellsCount', u_cells.length/2);
+				baseShader.setUniform('uCells', u_cells);
+				baseShader.setUniform('uCamera', cam_rot);
+				baseShader.setUniform('uTime', millis()/2000);
+				baseShader.setUniform('uSpeed', cam_speed);
+
+				sphere(90,500,500);
+
+			// inside
+				shader(insideShader);
+				insideShader.setUniform('uResolution', [width,height]);
+				insideShader.setUniform('uCamera', cam_vec.copy().div(800).array());
+				insideShader.setUniform('uCamera_r', [cam_rot[0],-cam_rot[1]]);
+				insideShader.setUniform('uTime', millis()/2000);
+				
+				// pixelDensity(1);
+				sphere(90,50,50);
+				// plane(200,200);
+				
+			mainLayer.end();
+		// base mask
+			maskLayer.begin();
+
+				clear();
+				scale(1,-1,1);
+				setCamera(cam);
+
+				shader(baseMaskShader);
+				baseMaskShader.setUniform('uCellsCount', u_cells.length/2);
+				baseMaskShader.setUniform('uCells', u_cells);
+				baseMaskShader.setUniform('uCamera', cam_rot);
+				baseMaskShader.setUniform('uTime', millis()/2000);
+				baseMaskShader.setUniform('uSpeed', cam_speed);
+
+				sphere(90,500,500);
+				
+			maskLayer.end();
+
+		// splashes
+			backLayer.begin();
+
+				clear();
+				scale(1,-1,1);
+				setCamera(cam);
+
+				rotateY(-cam_rot[0]+Math.PI/2);
+				rotateX(cam_rot[1]+Math.PI/2);
+				rotateZ(cam_rot[1]);
+
+				shader(splashShader);
+				splashShader.setUniform('uCamera', cam_rot);
+				splashShader.setUniform('uResolution', [width,height]);
+				
+				for(var i=0; i<splashs_count; i++) {
+					const data = splashs[i];
+					const time = millis()-data.time;
+					const angle = data.angle;
+					const r = 140;
+					
+					splashShader.setUniform('uTime', Math.max(time,0)/1000);
+
+					// console.log();
+					// push();
+					rotateZ(angle);
+					translate(0, r,0);
+					// rotateY(Math.PI/2);
+					plane(50,100,50,50);
+					translate(0,-r,0);
+					// pop();
+
+					if(time>3000) {
+						splashs[i] = {
+							time: millis()+2000*Math.random(),
+							angle: angle
+						};
+					}
+				}
+
+			backLayer.end();
+
+		// vortexes
+			vortLayer.begin();
+
+				clear();
+				setCamera(cam);
+
+				// normalMaterial();
+				// stroke(1);
+				// model(ribbon);
+
+				shader(vortexShader);
+				vortexShader.setUniform('uCamera', cam_rot);
+				vortexShader.setUniform('uResolution', [width,height]);
+				
+				for(var i=0; i<vortexes.length; i++) {
+					const LIVE_TIME = 1000;
+					const time = millis()-vortexes[i].time;
+					const posX = vortexes[i].posX;
+					const posY = vortexes[i].posY;
+					const velX = vortexes[i].velX;
+					const velY = vortexes[i].velY;
+					const vel  = vortexes[i].vel;//Math.sqrt(velX*velX,velY*velY)
+					const dir  = velX>0 ? 1: -1;
+
+					vortexShader.setUniform('uTime', time/LIVE_TIME);
+					// splashShader.setUniform('uVel', [velX,velY]);
+
+					rotateY(-posX+Math.PI/2);//-cam_speed_vec[0]*2//cam_rot[0]+
+					rotateX(Math.PI-posY);//-cam_speed_vec[1]*2//cam_rot[1]+
+
+					// rotateY( -posX+Math.PI/2+velX*(time/LIVE_TIME)*Math.PI*8 );
+
+					// rotateY(Math.PI/2);
+					// rotateX(Math.PI/2);
+
+					// rotateY(Math.atan(velY,velX));
+					rotateY(-Math.atan2(velY,velX)+Math.PI/2);
+
+					rotateX(vel*(time/LIVE_TIME)*Math.PI*64);
+
+					// console.log(velX,velY,dir*vel);
+
+
+					const l = 500;
+					const r = l/2+100;
+					translate(0, r,0);
+					plane(10,l,40,40);
+					// box(10,l,10);
+					resetMatrix();
+
+					// const speed = {
+					// 	X: vortexes[i].velX*(1-time/LIVE_TIME),
+					// 	Y: vortexes[i].velY*(1-time/LIVE_TIME)
+					// };
+					// vortexes[i].posX -= 0.1*(1-time/LIVE_TIME);
+					// vortexes[i].posX -= speed.X;
+					// vortexes[i].posY += speed.Y;
+
+					if(time > LIVE_TIME) vortexes.splice(i, 1);
+				}
+
+			vortLayer.end();
+			
+
+
+			shader(sumShader);
+			sumShader.setUniform('maskImg', maskLayer.color);
+			sumShader.setUniform('mainImg', mainLayer.color);
+			sumShader.setUniform('backImg', backLayer.color);
+			sumShader.setUniform('vortImg', vortLayer.color);
+			sumShader.setUniform('vortDep', vortLayer.depth);
+			plane(width, height);
+
+		}
+	</script>
+</body>
+</html>
