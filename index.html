@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>2D</title>
+	<title>Arcane</title>
 	<style type="text/css">
 		body {
 			margin: 0;
@@ -19,14 +19,8 @@
 	</style>
 </head>
 <body>
-	<!-- <script type="text/javascript" src="./gpu-browser.min.js"></script> -->
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.2/p5.js"></script> 
-	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.6./addons/p5.dom.js"></script> -->
 	<script type="text/javascript" id="script">
-		/*
-		 * Todo:
-		 * вихри
-		 */
 
 		// MASK SHADER //
 
@@ -378,7 +372,7 @@
 			}
 		`;
 
-		// SPLASHES SHADER //
+		// VORTEXES SHADER //
 
 		let vortexVert = `
 			precision highp float;
@@ -517,7 +511,7 @@
 			vortLayer = createFramebuffer();
 
 		// find 12 points in dodecahedron pattern
-			const DDA = Math.acos(-Math.sqrt(1/5));//*180/Math.PI;// Dihedral dodecahedron angle
+			const DDA = Math.acos(-Math.sqrt(1/5)); // Dihedral dodecahedron angle
 			var fcells = [];
 			fcells.push([ Math.PI/2,0]);
 			fcells.push([-Math.PI/2,0]);
@@ -652,9 +646,7 @@
 				insideShader.setUniform('uCamera_r', [cam_rot[0],-cam_rot[1]]);
 				insideShader.setUniform('uTime', millis()/2000);
 				
-				// pixelDensity(1);
 				sphere(90,50,50);
-				// plane(200,200);
 				
 			mainLayer.end();
 		// base mask
@@ -698,14 +690,10 @@
 					
 					splashShader.setUniform('uTime', Math.max(time,0)/1000);
 
-					// console.log();
-					// push();
 					rotateZ(angle);
 					translate(0, r,0);
-					// rotateY(Math.PI/2);
 					plane(50,100,50,50);
 					translate(0,-r,0);
-					// pop();
 
 					if(time>3000) {
 						splashs[i] = {
@@ -723,10 +711,6 @@
 				clear();
 				setCamera(cam);
 
-				// normalMaterial();
-				// stroke(1);
-				// model(ribbon);
-
 				shader(vortexShader);
 				vortexShader.setUniform('uCamera', cam_rot);
 				vortexShader.setUniform('uResolution', [width,height]);
@@ -738,50 +722,27 @@
 					const posY = vortexes[i].posY;
 					const velX = vortexes[i].velX;
 					const velY = vortexes[i].velY;
-					const vel  = vortexes[i].vel;//Math.sqrt(velX*velX,velY*velY)
+					const vel  = vortexes[i].vel;
 					const dir  = velX>0 ? 1: -1;
 
 					vortexShader.setUniform('uTime', time/LIVE_TIME);
-					// splashShader.setUniform('uVel', [velX,velY]);
 
-					rotateY(-posX+Math.PI/2);//-cam_speed_vec[0]*2//cam_rot[0]+
-					rotateX(Math.PI-posY);//-cam_speed_vec[1]*2//cam_rot[1]+
-
-					// rotateY( -posX+Math.PI/2+velX*(time/LIVE_TIME)*Math.PI*8 );
-
-					// rotateY(Math.PI/2);
-					// rotateX(Math.PI/2);
-
-					// rotateY(Math.atan(velY,velX));
+					rotateY(-posX+Math.PI/2);
+					rotateX(Math.PI-posY);
 					rotateY(-Math.atan2(velY,velX)+Math.PI/2);
-
 					rotateX(vel*(time/LIVE_TIME)*Math.PI*64);
-
-					// console.log(velX,velY,dir*vel);
-
 
 					const l = 500;
 					const r = l/2+100;
 					translate(0, r,0);
 					plane(10,l,40,40);
-					// box(10,l,10);
 					resetMatrix();
-
-					// const speed = {
-					// 	X: vortexes[i].velX*(1-time/LIVE_TIME),
-					// 	Y: vortexes[i].velY*(1-time/LIVE_TIME)
-					// };
-					// vortexes[i].posX -= 0.1*(1-time/LIVE_TIME);
-					// vortexes[i].posX -= speed.X;
-					// vortexes[i].posY += speed.Y;
 
 					if(time > LIVE_TIME) vortexes.splice(i, 1);
 				}
 
 			vortLayer.end();
 			
-
-
 			shader(sumShader);
 			sumShader.setUniform('maskImg', maskLayer.color);
 			sumShader.setUniform('mainImg', mainLayer.color);
@@ -789,7 +750,6 @@
 			sumShader.setUniform('vortImg', vortLayer.color);
 			sumShader.setUniform('vortDep', vortLayer.depth);
 			plane(width, height);
-
 		}
 	</script>
 </body>
