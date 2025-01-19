@@ -457,15 +457,18 @@
 				vec4 vort_img_color = texture2D(vortImg, flip_tex_coord);
 				float vort_img_depth = texture2D(vortDep, flip_tex_coord).r;
 
-				gl_FragColor = mix(
-					mix(
-						back_img_color,
-						main_img_color,
-						mask_img_color.a
-					),
-					vort_img_color,
-					clamp(step(vort_img_depth,0.9)+(1.-mask_img_color.a),0.,1.)
+				vec4 color_a = mix(
+					back_img_color,
+					main_img_color,
+					mask_img_color.a
 				);
+				vec4 color_b = mix(
+					vort_img_color,
+					color_a,
+					color_a.a
+				);
+
+				gl_FragColor = color_b;
 				// gl_FragColor = back_img_color;
 			}
 		`;
