@@ -302,7 +302,7 @@
 
 				vec3 pp = p;
 				float ss=2., s;
-				for(int j=0; j<7; j++) {
+				for(int j=0; j<6; j++) {
 					p=mod(p-1.,2.)-1.;
 					ss*=s=(1.3+sin(uTime*0.2)*0.3)/dot(p,p);
 					// ss*=s=1./dot(p,p);
@@ -339,7 +339,7 @@
 				rd.zx *= rot(uCamera_r.x-3.14/2.);
 
 				float d=0., e=1., dist=-1., alpha=1.;
-				for(int i=0; i<50; i++) {
+				for(int i=0; i<30; i++) {
 					if(e<.001) {
 						dist = float(i);
 						break;
