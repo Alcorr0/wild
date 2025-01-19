@@ -295,11 +295,6 @@
 
 			#define rot(a) mat2(cos(a), -sin(a), sin(a), cos(a))
 
-			float cube(vec3 p, vec3 b, float r)
-			{
-				vec3 q = abs(p) - b + r;
-				return length(max(q,0.)) + min(max(q.x,max(q.y,q.z)),0.) - r;
-			}
 			float scene(vec3 p) {
 				p.xy *= rot(uTime*0.2);
 				p.yz *= rot(uTime*0.2);
@@ -312,9 +307,6 @@
 					ss*=s=(1.3+sin(uTime*0.2)*0.3)/dot(p,p);
 					// ss*=s=1./dot(p,p);
 					p*=s;
-
-					// p.xz *= rot(0.1);
-					// p.y *= 1.1;
 				}
 
 				float sphere = length(pp)-.65;
@@ -323,7 +315,6 @@
 
 				return max(sphere,fractal);
 			}
-			
 			vec3 sceneN(vec3 p)
 			{ 
 				float d = scene(p);
@@ -336,7 +327,6 @@
 				return normalize(n);
 			}
 
-			float random (vec2 st) {return fract(sin(dot(st.xy,vec2(12.9898,78.233)))*43758.5453123);}
 			void main() {
 				vec2 uv = (gl_FragCoord.xy*2.-uResolution*2.)/uResolution.y;
 			
@@ -395,8 +385,6 @@
 				cam_n.zx *= rot(uCamera.x);
 				cam_n.xy *= rot(-uCamera.y);
 				cam_n = abs(cam_n);
-
-				// vec3 w_p = p/vec3(5,100,0)-0.5;
 				
 				vec2 p_a = p.xy*vec2(4.5,20.)*1.+vec2(1.5,-0.5);
 				vVertexColor = vec4(vec3(.5,.5,.9)*.7+cam_n*.3, length(mod(p_a-1.5,2.)-1.)+0.2-uTime*0.8);
@@ -610,7 +598,7 @@
 
 			const vortexes_num = Math.floor((Math.abs(cam_speed_vec[0])+Math.abs(cam_speed_vec[1]))/0.1);
 			if(vortexes_num!=0) {
-				if(vortexes.length < vortexes_num) {
+				if(vortexes_num > 2 && vortexes.length < vortexes_num) {
 					const rnd = Math.random()*20;
 					vortexes.push({
 						time: millis(),
