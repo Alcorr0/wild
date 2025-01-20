@@ -313,7 +313,7 @@
 				float cross = min(min(length(p.xz),length(p.xy)),length(p.yz));
 				float fractal = (cross)/ss;
 
-				return fractal;//max(sphere,fractal);
+				return max(sphere,fractal);
 			}
 			vec3 sceneN(vec3 p)
 			{ 
