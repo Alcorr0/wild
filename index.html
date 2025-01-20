@@ -333,7 +333,7 @@
 				float r = 1.;
 				vec3 p, rd=normalize(vec3(uv,1.)), ro=uCamera*vec3(1,1,-1);
 				float zoom = length(ro);
-				ro = normalize(ro)*(0.5+zoom*1.);
+				ro = normalize(ro)*(0.5+zoom*.5);
 
 				rd.yz *= rot(uCamera_r.y+3.14/2.);
 				rd.zx *= rot(uCamera_r.x-3.14/2.);
