@@ -328,7 +328,7 @@
 			}
 
 			void main() {
-				vec2 uv = (gl_FragCoord.xy*1.-uResolution*2.)/uResolution.y;
+				vec2 uv = (gl_FragCoord.xy*2.-uResolution*4.)/uResolution.y;
 			
 				float r = 1.;
 				vec3 p, rd=normalize(vec3(uv,1.)), ro=uCamera*vec3(1,1,-1);
