@@ -509,9 +509,10 @@
 			console.log('iOSSafari',iOSSafari);
 			
 		// fix uv
-			if(!isSafari) {//isFirefox || isChrome || iOSSafari
-				insideFrag = insideFrag.replace('uResolution*1.','uResolution*2.');
-			}
+			insideFrag = insideFrag.replace('uResolution*1.','uResolution*2.');
+			//if(!isSafari) {//isFirefox || isChrome || iOSSafari
+				
+			//}
 
 		// init
 			createCanvas(window.innerWidth, window.innerHeight, WEBGL);
