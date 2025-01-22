@@ -493,11 +493,22 @@
 			const isSafari = /constructor/i.test(window.HTMLElement) || (function (p) { return p.toString() === "[object SafariRemoteNotification]"; })(!window['safari'] || (typeof safari !== 'undefined' && window['safari'].pushNotification));
 			const isIE = /*@cc_on!@*/false || !!document.documentMode;
 			const isEdge = !isIE && !!window.StyleMedia;
-			const isChrome = !!window.chrome && (!!window.chrome.webstore || !!window.chrome.runtime);
+			const isChrome = (typeof window.navigator.userAgentData !== "undefined") ? window.navigator.userAgentData.brands[0].brand === "Google Chrome" :  window.navigator.vendor === "Google Inc.";
 			const isEdgeChromium = isChrome && (navigator.userAgent.indexOf("Edg") != -1);
 			const isBlink = (isChrome || isOpera) && !!window.CSS;
+			const iOSSafari = (!!window.navigator.userAgent.match(/iPad/i) || !!window.navigator.userAgent.match(/iPhone/i)) && !!window.navigator.userAgent.match(/WebKit/i) && !window.navigator.userAgent.match(/CriOS/i);
+			
+			console.log('isOpera',isOpera);
+			console.log('isFirefox',isFirefox);
+			console.log('isSafari',isSafari);
+			console.log('isIE',isIE);
+			console.log('isEdge',isEdge);
+			console.log('isChrome',isChrome);
+			console.log('isEdgeChromium',isEdgeChromium);
+			console.log('isBlink',isBlink);
+			
 		// fix uv
-			if(isChrome) {
+			if(isFirefox || isChrome || iOSSafari) {
 				insideFrag = insideFrag.replace('uResolution*1.','uResolution*2.');
 			}
 
