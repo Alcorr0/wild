@@ -339,8 +339,8 @@
 				rd.zx *= rot(uCamera_r.x-3.14/2.);
 
 				float d=0., e=1., dist=-1., alpha=1.;
-				for(int i=0; i<10; i++) {
-					if(e<.001) {
+				for(int i=0; i<20; i++) {
+					if(e<.01) {
 						dist = float(i);
 						break;
 					}
