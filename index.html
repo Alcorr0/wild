@@ -509,7 +509,7 @@
 			console.log('iOSSafari',iOSSafari);
 			
 		// fix uv
-			if(isFirefox || isChrome || iOSSafari) {
+			if(!isSafari) {//isFirefox || isChrome || iOSSafari
 				insideFrag = insideFrag.replace('uResolution*1.','uResolution*2.');
 			}
 
