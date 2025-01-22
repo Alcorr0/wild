@@ -652,7 +652,6 @@
 				insideShader.setUniform('uCamera', cam_vec.copy().div(800).array());
 				insideShader.setUniform('uCamera_r', [cam_rot[0],-cam_rot[1]]);
 				insideShader.setUniform('uTime', millis()/2000);
-				console.log(width,height);
 				
 				sphere(90,50,50);
 				
